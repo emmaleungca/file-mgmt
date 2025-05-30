@@ -2,7 +2,14 @@ import os
 import pandas as pd
 from datetime import datetime
 from PyPDF2 import PdfReader
+import sys
 
+# Get absolute path to the project root
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from utils.logger import log_function_use
 def get_file_info(folder_path):
     file_data = []
 
@@ -54,4 +61,9 @@ def get_file_info_dataframe(folder_path):
         "File Extension", "File Size (bytes)", "Created Datetime", "Updated Datetime", "Pages (if PDF)"
     ]
     df = pd.DataFrame(file_info, columns=columns)
+    log_function_use(
+        function_name="File Metadata Extractor",
+        input_value=folder_path,
+        result_status=f"{len(df)} files scanned" if not df.empty else "No files found"
+    )
     return df

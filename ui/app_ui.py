@@ -1,53 +1,51 @@
-import tkinter as tk
-from tkinter import ttk
-from functions import function_registry
-import inspect
+import streamlit as st
+from io import BytesIO
+import sys
+import os
 
+# Get absolute path to the project root
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Python Function Runner")
-        self.geometry("400x400")
+from functions.file_utils.file_info_extractor import get_file_info_dataframe
+def file_metadata_extractor_ui():
+    st.subheader("📁 File Metadata Extractor")
+    st.markdown("Scan a folder to collect file metadata and export it to Excel. PDF page counts are included.")
 
-        self.func_var = tk.StringVar()
-        self.dropdown = ttk.Combobox(self, textvariable=self.func_var, values=list(function_registry.keys()))
-        self.dropdown.pack()
+    folder_path = st.text_input("Enter the full path to the folder you want to scan:")
 
-        self.input_frame = tk.Frame(self)
-        self.input_frame.pack()
+    if folder_path:
+        if st.button("📊 Scan and Generate Excel"):
+            try:
+                with st.spinner("Scanning files..."):
+                    df = get_file_info_dataframe(folder_path)
 
-        self.run_button = tk.Button(self, text="Run", command=self.run_selected_function)
-        self.run_button.pack()
+                    if df.empty:
+                        st.warning("✅ No files were found or processed in the selected folder.")
+                    else:
+                        st.success(f"Scanned {len(df)} files.")
+                        st.dataframe(df.head(10))  # Preview
 
-        self.output = tk.Text(self, height=10)
-        self.output.pack()
+                        buffer = BytesIO()
+                        df.to_excel(buffer, index=False, engine='openpyxl')
+                        buffer.seek(0)
 
-        self.dropdown.bind("<<ComboboxSelected>>", self.update_input_fields)
+                        st.download_button(
+                            label="⬇️ Download Excel File",
+                            data=buffer,
+                            file_name="file_metadata.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
 
-    def update_input_fields(self, event=None):
-        for widget in self.input_frame.winfo_children():
-            widget.destroy()
-        self.inputs = {}
-        func = function_registry[self.func_var.get()]
-        sig = inspect.signature(func)
-        for param in sig.parameters.values():
-            lbl = tk.Label(self.input_frame, text=param.name)
-            lbl.pack()
-            entry = tk.Entry(self.input_frame)
-            entry.pack()
-            self.inputs[param.name] = entry
+            except FileNotFoundError as fnf_err:
+                st.error(f"Path Error: {fnf_err}")
+            except Exception as e:
+                st.error(f"Unexpected error: {e}")
 
-    def run_selected_function(self):
-        func = function_registry[self.func_var.get()]
-        kwargs = {k: self.inputs[k].get() for k in self.inputs}
-        try:
-            result = func(**kwargs)
-            self.output.insert(tk.END, str(result) + "\n")
-        except Exception as e:
-            self.output.insert(tk.END, f"Error: {e}\n")
-
-
-if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+def placeholder_function_ui():
+    st.subheader("🧪 Placeholder Function")
+    st.markdown("This is a placeholder for another function.")
+    name = st.text_input("Enter your name:")
+    if name:
+        st.success(f"Hello, {name}! This is a test function.")
